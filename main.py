@@ -171,9 +171,6 @@ class ACEGraph:
             n = UF_Node(n.f, tuple(map(self.find, n.args)))
             i = self.find(i)
 
-            # Storing this is redundant
-            if n == AC_Node((i,)): continue
-
             if n in h:
                 changed = True
                 self.union(h[n], i)
