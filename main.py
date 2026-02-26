@@ -126,6 +126,18 @@ class ACEGraph:
             if self.rebuild_ac_step(): continue
             break
 
+    def ac_to_hashcons(self, ac_hashcons, x: AC_Node, y: AC_Node):
+        if x == y: return
+
+        if len(x.args) == len(y.args) == 1:
+            self.union(x.args[0], y.args[0])
+        elif x > y:
+            ac_hashcons.append((x, y))
+        elif x < y:
+            ac_hashcons.append((y, x))
+        else:
+            assert(False)
+
     def rebuild_ac_step(self):
         changed = False
 
@@ -134,11 +146,7 @@ class ACEGraph:
         for (lhs, rhs) in self.ac_hashcons:
             lhs = self.weak_canon_ac_node(lhs)
             rhs = self.canon_ac_node(rhs) # We want the actual normal form in the rhs.
-            e = (lhs, rhs)
-            if len(lhs.args) == len(rhs.args) == 1:
-                self.union(lhs.args[0], rhs.args[0])
-            elif e not in ac_hashcons:
-                ac_hashcons.append(e)
+            self.ac_to_hashcons(ac_hashcons, lhs, rhs)
         self.ac_hashcons = ac_hashcons
 
         # compute CPs of rules
@@ -154,14 +162,7 @@ class ACEGraph:
                 if lhs == rhs: continue
                 changed = True
 
-                if len(lhs.args) == len(rhs.args) == 1:
-                    self.union(lhs.args[0], rhs.args[0])
-                elif lhs < rhs:
-                    self.ac_hashcons.append((rhs, lhs))
-                elif lhs > rhs:
-                    self.ac_hashcons.append((lhs, rhs))
-                else:
-                    assert(False)
+                self.ac_to_hashcons(self.ac_hashcons, lhs, rhs)
 
     def rebuild_uf_step(self):
         changed = False
