@@ -98,17 +98,11 @@ class ACEGraph:
             print(f"unionfind: {n} -> {i}")
         for (n, i) in self.uf_hashcons.items():
             print(f"uf_hashcons: {n} -> {i}")
-        for (n, i) in self.ac_hashcons:
+        for (n, i) in sorted(self.ac_hashcons, key=lambda x: x[0].args):
             print(f"ac_hashcons: {n} -> {i}")
 
     def is_equal(self, x: Id, y: Id) -> bool:
         self.rebuild()
-
-        # debugging:
-        self.dump()
-        print(self.find(x))
-        print(self.find(y))
-
         return self.find(x) == self.find(y)
 
     def union(self, x: Id, y: Id):
@@ -139,7 +133,7 @@ class ACEGraph:
             assert(False)
 
     def rebuild_ac_step(self):
-        changed = False
+        old = set(self.ac_hashcons)
 
         # canon rules via unionfind
         ac_hashcons = []
@@ -160,9 +154,9 @@ class ACEGraph:
                 rhs = self.canon_ac_node(rhs)
 
                 if lhs == rhs: continue
-                changed = True
 
                 self.ac_to_hashcons(self.ac_hashcons, lhs, rhs)
+        return old != set(self.ac_hashcons)
 
     def rebuild_uf_step(self):
         changed = False
