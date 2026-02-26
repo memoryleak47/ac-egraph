@@ -103,7 +103,12 @@ class ACEGraph:
 
     def is_equal(self, x: Id, y: Id) -> bool:
         self.rebuild()
+
+        # debugging:
         self.dump()
+        print(self.find(x))
+        print(self.find(y))
+
         return self.find(x) == self.find(y)
 
     def union(self, x: Id, y: Id):
@@ -130,7 +135,9 @@ class ACEGraph:
             lhs = self.weak_canon_ac_node(lhs)
             rhs = self.canon_ac_node(rhs) # We want the actual normal form in the rhs.
             e = (lhs, rhs)
-            if e not in ac_hashcons:
+            if len(lhs.args) == len(rhs.args) == 1:
+                self.union(lhs.args[0], rhs.args[0])
+            elif e not in ac_hashcons:
                 ac_hashcons.append(e)
         self.ac_hashcons = ac_hashcons
 
@@ -218,6 +225,9 @@ def unify(a: AC_Node, b: AC_Node) -> (AC_Node, AC_Node):
             i_b += 1
     x += AC_Node(tuple(b.args[i_b:]))
     y += AC_Node(tuple(a.args[i_a:]))
+
+    assert(x+a == y+b)
+
     return (x, y)
 
 # returns x, s.t. pat+x = t, or None if such x does not exist.
