@@ -74,10 +74,50 @@ class ACEGraph:
         y = self.find(y)
         if x == y: return
         self.uf[x] = y
+        self.ac_eqs.append((AC_Node((x,)), AC_Node((y,))))
 
     def rebuild(self):
-        self.rebuild_uf()
-        self.rebuild_ac()
+        while True:
+            if self.rebuild_uf_step(): continue
+            if self.rebuild_ac_step(): continue
+            break
+
+    def rebuild_ac_step(self):
+        changed = False
+        for (al, ar) in self.ac_eqs:
+            for (bl, br) in self.ac_eqs:
+                (s1, s2) = unify(al, bl)
+                lhs = s1+al
+                rhs = s2+bl
+                lhs = self.simplify_ac_node(lhs)
+                rhs = self.simplify_ac_node(rhs)
+
+                if lhs == rhs: continue
+                changed = True
+
+                if len(lhs.args) == len(rhs.args) == 1:
+                    self.union(lhs.args[0], rhs.args[0])
+
+                if lhs < rhs:
+                    self.ac_eqs.append((rhs, lhs))
+                elif lhs > rhs:
+                    self.ac_eqs.append((lhs, rhs))
+                else:
+                    assert(False)
+
+    def rebuild_eg_step(self):
+        changed = False
+        new_h = {}
+        for (n, i) in self.hashcons.items():
+            n = self.canon_node(n)
+            i = self.find(i)
+            if n in h:
+                changed = True
+                self.union(n[h], i)
+            else:
+                new_h[n] = i
+        self.hashcons = new_h
+        return changed
 
     def simplify_ac_node(self, n: AC_Node) -> AC_Node:
         args = list(map(self.find, n.args))
@@ -94,37 +134,6 @@ class ACEGraph:
             if not changed:
                 break
 
-    def rebuild_ac(self):
-        for (al, ar) in self.ac_eqs:
-            for (bl, br) in self.ac_eqs:
-                (s1, s2) = unify(al, bl)
-                lhs = s1+al
-                rhs = s2+bl
-                lhs = self.simplify_ac_node(lhs)
-                rhs = self.simplify_ac_node(rhs)
-                if lhs < rhs:
-                    self.ac_eqs.append((rhs, lhs))
-                if lhs > rhs:
-                    self.ac_eqs.append((lhs, rhs))
-                else:
-                    assert(lhs == rhs)
-
-    def rebuild_eg(self):
-        while True:
-            changed = False
-
-            new_h = {}
-            for (n, i) in self.hashcons.items():
-                n = self.canon_node(n)
-                i = self.find(i)
-                if n in h:
-                    changed = True
-                    self.union(n[h], i)
-                else:
-                    new_h[n] = i
-            self.hashcons = new_h
-
-            if not changed: break
 
 # (x, y) = unify(a, b)
 # ->
