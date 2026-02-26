@@ -59,7 +59,7 @@ type Node = UF_Node | AC_Node
 @dataclass
 class ACEGraph:
     uf: dict[Id, Id]
-    hashcons: dict[Node, Id]
+    hashcons: dict[UF_Node, Id]
     ac_eqs: list[(AC_Node, AC_Node)]
 
     def __init__(self):
@@ -74,20 +74,32 @@ class ACEGraph:
             n = self.canon_ac_node(n)
         return n
 
-    def add(self, n: Node) -> Id:
-        n = self.canon_node(n)
-
-        # stupid edge-case
-        if isinstance(n, AC_Node) and len(n.args) == 1:
-            return n.args[0]
+    def add_uf_node(self, f: str, args) -> Id:
+        n = UF_Node(f, tuple(map(self.find, args)))
 
         if n in self.hashcons:
             return self.hashcons[n]
         i = Id(len(self.uf))
         self.uf[i] = i
-        self.hashcons[n] = i
+        if isinstance(n, UF_Node):
+            self.hashcons[n] = i
         if isinstance(n, AC_Node):
             self.ac_eqs.append((n, AC_Node((i,))))
+        return i
+
+    def add_ac_node(self, args) -> Id:
+        assert(len(args) > 1)
+
+        n = AC_Node.mk(args)
+        # NOTE: this should be a hashmap lookup later.
+        for (x, y) in self.ac_eqs:
+            if x != n: continue
+            if len(y.args) != 1: continue
+            return y.args[0]
+
+        i = Id(len(self.uf))
+        self.uf[i] = i
+        self.ac_eqs.append((n, AC_Node((i,))))
         return i
 
     def find(self, x: Id) -> Id:
@@ -233,11 +245,11 @@ def ac_match(pat: AC_Node, t: AC_Node) -> AC_Node | None:
 eg = ACEGraph()
 
 # hack to allow adding Ids
-Id.__add__ = lambda slf, other: eg.add(AC_Node.mk((slf, other)))
+Id.__add__ = lambda slf, other: eg.add_ac_node((slf, other))
 
-const = lambda a: eg.add(UF_Node(a, ()))
-f = lambda x, y: eg.add(UF_Node("f", (x, y)))
-g = lambda x, y: eg.add(UF_Node("g", (x, y)))
+const = lambda a: eg.add_uf_node(a, ())
+f = lambda x, y: eg.add_uf_node("f", (x, y))
+g = lambda x, y: eg.add_uf_node("g", (x, y))
 
 a = const("a")
 b = const("b")
