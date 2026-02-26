@@ -74,6 +74,10 @@ class ACEGraph:
             x = self.uf[x]
         return x
 
+    def is_equal(self, x: Id, y: Id) -> bool:
+        self.rebuild()
+        return self.find(x) == self.find(y)
+
     def union(self, x: Id, y: Id):
         x = self.find(x)
         y = self.find(y)
@@ -124,9 +128,9 @@ class ACEGraph:
                 else:
                     assert(False)
 
-    def rebuild_eg_step(self):
+    def rebuild_uf_step(self):
         changed = False
-        new_h = {}
+        h = {}
         for (n, i) in self.hashcons.items():
             n = self.canon_node(n)
             i = self.find(i)
@@ -134,8 +138,8 @@ class ACEGraph:
                 changed = True
                 self.union(n[h], i)
             else:
-                new_h[n] = i
-        self.hashcons = new_h
+                h[n] = i
+        self.hashcons = h
         return changed
 
     # respects the unionfind, but not the ac_eqs.
@@ -184,11 +188,21 @@ def ac_match(pat: AC_Node, t: AC_Node) -> AC_Node | None:
     return x
 
 # Example:
-eg = ACEGraph()
-a = eg.add(UF_Node("a", ()))
-b = eg.add(UF_Node("b", ()))
 
-c = eg.add(AC_Node((a, b)))
-d = eg.add(AC_Node((b, a)))
-print(eg.find(c))
-print(eg.find(d))
+eg = ACEGraph()
+
+# hack to allow adding Ids
+Id.__add__ = lambda slf, other: eg.add(AC_Node((slf, other)))
+
+const = lambda a: eg.add(UF_Node(a, ()))
+f = lambda x, y: eg.add(UF_Node("f", (x, y)))
+g = lambda x, y: eg.add(UF_Node("g", (x, y)))
+
+a = const("a")
+b = const("b")
+c = const("c")
+d = const("d")
+
+eg.union(b+b, a+a)
+
+assert(eg.is_equal(a+b, a+a))
