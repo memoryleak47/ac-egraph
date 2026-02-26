@@ -78,7 +78,10 @@ class ACEGraph:
         x = self.find(x)
         y = self.find(y)
         if x == y: return
-        self.uf[x] = y
+        if x < y:
+            self.uf[y] = x
+        elif y < x:
+            self.uf[x] = y
 
     def rebuild(self):
         while True:
