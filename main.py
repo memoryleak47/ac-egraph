@@ -55,6 +55,11 @@ class ACEGraph:
 
     def add(self, n: Node) -> Id:
         n = self.canon_node(n)
+
+        # stupid edge-case
+        if isinstance(n, AC_Node) and len(n.args) == 1:
+            return n.args[0]
+
         if n in self.hashcons:
             return self.hashcons[n]
         i = Id(len(self.uf))
@@ -74,7 +79,6 @@ class ACEGraph:
         y = self.find(y)
         if x == y: return
         self.uf[x] = y
-        self.ac_eqs.append((AC_Node((x,)), AC_Node((y,))))
 
     def rebuild(self):
         while True:
@@ -84,8 +88,21 @@ class ACEGraph:
 
     def rebuild_ac_step(self):
         changed = False
-        for (al, ar) in self.ac_eqs:
-            for (bl, br) in self.ac_eqs:
+
+        # canon rules via unionfind
+        ac_eqs = []
+        for (lhs, rhs) in self.ac_eqs:
+            lhs = self.canon_ac_node(lhs)
+            rhs = self.canon_ac_node(rhs)
+            e = (lhs, rhs)
+            if e not in ac_eqs:
+                ac_eqs.append(e)
+        self.ac_eqs = ac_eqs
+
+        # compute CPs of rules
+        L = list(self.ac_eqs)
+        for (al, ar) in L:
+            for (bl, br) in L:
                 (s1, s2) = unify(al, bl)
                 lhs = s1+al
                 rhs = s2+bl
@@ -97,8 +114,7 @@ class ACEGraph:
 
                 if len(lhs.args) == len(rhs.args) == 1:
                     self.union(lhs.args[0], rhs.args[0])
-
-                if lhs < rhs:
+                elif lhs < rhs:
                     self.ac_eqs.append((rhs, lhs))
                 elif lhs > rhs:
                     self.ac_eqs.append((lhs, rhs))
@@ -119,10 +135,15 @@ class ACEGraph:
         self.hashcons = new_h
         return changed
 
-    def simplify_ac_node(self, n: AC_Node) -> AC_Node:
+    # respects the unionfind, but not the ac_eqs.
+    def canon_ac_node(self, n: AC_Node) -> AC_Node:
         args = list(map(self.find, n.args))
         args = sorted(args)
         n = AC_Node(tuple(args))
+        return n
+
+    def simplify_ac_node(self, n: AC_Node) -> AC_Node:
+        n = self.canon_ac_node(n)
 
         while True:
             changed = False
@@ -133,7 +154,6 @@ class ACEGraph:
                     changed = True
             if not changed:
                 break
-
 
 # (x, y) = unify(a, b)
 # ->
