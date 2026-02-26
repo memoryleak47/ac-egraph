@@ -7,10 +7,18 @@ class Id:
     def __lt__(self, other: Id):
         return self.i < other.i
 
+    def __repr__(self):
+        return "id" + str(self.i)
+
 @dataclass(frozen=True)
 class UF_Node: # node using uninterpreted function
     f: str
     args: tuple[Id]
+
+    def __repr__(self):
+        if len(self.args) > 0:
+            return self.f + "(" + ", ".join(map(str, self.args)) + ")"
+        return self.f
 
 @dataclass(frozen=True)
 class AC_Node: # node using AC function
@@ -42,6 +50,9 @@ class AC_Node: # node using AC function
 
         assert(self == other)
         return False
+
+    def __repr__(self):
+        return "{" + " + ".join(map(str, self.args)) + "}"
 
 type Node = UF_Node | AC_Node
 
@@ -84,8 +95,17 @@ class ACEGraph:
             x = self.uf[x]
         return x
 
+    def dump(self):
+        for (n, i) in self.hashcons.items():
+            print(f"hashcons: {n} -> {i}")
+        for (n, i) in self.uf.items():
+            print(f"unionfind: {n} -> {i}")
+        for (n, i) in self.ac_eqs:
+            print(f"ac_eqs: {n} -> {i}")
+
     def is_equal(self, x: Id, y: Id) -> bool:
         self.rebuild()
+        self.dump()
         return self.find(x) == self.find(y)
 
     def union(self, x: Id, y: Id):
@@ -144,6 +164,10 @@ class ACEGraph:
         for (n, i) in self.hashcons.items():
             n = self.canon_node(n)
             i = self.find(i)
+
+            # Storing this is redundant
+            if n == AC_Node((i,)): continue
+
             if n in h:
                 changed = True
                 self.union(h[n], i)
@@ -217,13 +241,9 @@ g = lambda x, y: eg.add(UF_Node("g", (x, y)))
 
 a = const("a")
 b = const("b")
-c = const("c")
-d = const("d")
+#c = const("c")
+#d = const("d")
 
 eg.union(b+b, a+a)
-eg.rebuild()
-print(eg.hashcons)
-print(eg.uf)
-print(eg.ac_eqs)
 
-assert(eg.is_equal(a+b, a+a))
+assert(eg.is_equal(a+b+a+b, a+a+a+a))
