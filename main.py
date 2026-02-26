@@ -161,6 +161,7 @@ class ACEGraph:
                     changed = True
             if not changed:
                 break
+        return n
 
 # (x, y) = unify(a, b)
 # ->
@@ -204,5 +205,9 @@ c = const("c")
 d = const("d")
 
 eg.union(b+b, a+a)
+eg.rebuild()
+print(eg.hashcons)
+print(eg.uf)
+print(eg.ac_eqs)
 
 assert(eg.is_equal(a+b, a+a))
