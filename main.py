@@ -44,7 +44,7 @@ class AC_Node: # node using AC function
         if len(self.args) > len(other.args): return True
         if len(self.args) < len(other.args): return False
 
-        for (x, y) in zip(self.args, other.args):
+        for (x, y) in zip(self.args[::-1], other.args[::-1]):
             if x > y: return True
             if x < y: return False
 
@@ -139,8 +139,8 @@ class ACEGraph:
         for (al, ar) in L:
             for (bl, br) in L:
                 (s1, s2) = unify(al, bl)
-                lhs = s1+al
-                rhs = s2+bl
+                lhs = s1+ar
+                rhs = s2+br
                 lhs = self.canon_ac_node(lhs)
                 rhs = self.canon_ac_node(rhs)
 
@@ -150,9 +150,9 @@ class ACEGraph:
                 if len(lhs.args) == len(rhs.args) == 1:
                     self.union(lhs.args[0], rhs.args[0])
                 elif lhs < rhs:
-                    self.ac_eqs.append((rhs, lhs))
+                    self.ac_hashcons.append((rhs, lhs))
                 elif lhs > rhs:
-                    self.ac_eqs.append((lhs, rhs))
+                    self.ac_hashcons.append((lhs, rhs))
                 else:
                     assert(False)
 
@@ -239,9 +239,6 @@ g = lambda x, y: eg.add_uf_node("g", (x, y))
 
 a = const("a")
 b = const("b")
-#c = const("c")
-#d = const("d")
 
 eg.union(b+b, a+a)
-
 assert(eg.is_equal(a+b+a+b, a+a+a+a))
