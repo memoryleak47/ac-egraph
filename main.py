@@ -58,62 +58,48 @@ type Node = UF_Node | AC_Node
 
 @dataclass
 class ACEGraph:
-    uf: dict[Id, Id]
-    hashcons: dict[UF_Node, Id]
-    ac_eqs: list[(AC_Node, AC_Node)]
+    unionfind: dict[Id, Id]
+    uf_hashcons: dict[UF_Node, Id]
+    ac_hashcons: list[(AC_Node, AC_Node)] # should be a dict too
 
     def __init__(self):
-        self.uf = {}
-        self.hashcons = {}
-        self.ac_eqs = []
-
-    def canon_node(self, n: Node) -> Id:
-        if isinstance(n, UF_Node):
-            n = UF_Node(n.f, tuple(map(self.find, n.args)))
-        elif isinstance(n, AC_Node):
-            n = self.canon_ac_node(n)
-        return n
+        self.unionfind = {}
+        self.uf_hashcons = {}
+        self.ac_hashcons = []
 
     def add_uf_node(self, f: str, args) -> Id:
         n = UF_Node(f, tuple(map(self.find, args)))
 
-        if n in self.hashcons:
-            return self.hashcons[n]
-        i = Id(len(self.uf))
-        self.uf[i] = i
-        if isinstance(n, UF_Node):
-            self.hashcons[n] = i
-        if isinstance(n, AC_Node):
-            self.ac_eqs.append((n, AC_Node((i,))))
+        if n in self.uf_hashcons:
+            return self.uf_hashcons[n]
+
+        i = Id(len(self.unionfind))
+        self.unionfind[i] = i
+        self.uf_hashcons[n] = i
         return i
 
     def add_ac_node(self, args) -> Id:
-        assert(len(args) > 1)
-
         n = AC_Node.mk(args)
-        # NOTE: this should be a hashmap lookup later.
-        for (x, y) in self.ac_eqs:
-            if x != n: continue
-            if len(y.args) != 1: continue
-            return y.args[0]
+        n = self.canon_ac_node(n)
+        if len(n.args) == 1: return n.args[0]
 
-        i = Id(len(self.uf))
-        self.uf[i] = i
-        self.ac_eqs.append((n, AC_Node((i,))))
+        i = Id(len(self.unionfind))
+        self.unionfind[i] = i
+        self.ac_hashcons.append((n, AC_Node((i,))))
         return i
 
     def find(self, x: Id) -> Id:
-        while self.uf[x] != x:
-            x = self.uf[x]
+        while self.unionfind[x] != x:
+            x = self.unionfind[x]
         return x
 
     def dump(self):
-        for (n, i) in self.hashcons.items():
-            print(f"hashcons: {n} -> {i}")
-        for (n, i) in self.uf.items():
+        for (n, i) in self.unionfind.items():
             print(f"unionfind: {n} -> {i}")
-        for (n, i) in self.ac_eqs:
-            print(f"ac_eqs: {n} -> {i}")
+        for (n, i) in self.uf_hashcons.items():
+            print(f"uf_hashcons: {n} -> {i}")
+        for (n, i) in self.ac_hashcons:
+            print(f"ac_hashcons: {n} -> {i}")
 
     def is_equal(self, x: Id, y: Id) -> bool:
         self.rebuild()
@@ -125,9 +111,9 @@ class ACEGraph:
         y = self.find(y)
         if x == y: return
         if x < y:
-            self.uf[y] = x
+            self.unionfind[y] = x
         elif y < x:
-            self.uf[x] = y
+            self.unionfind[x] = y
 
     def rebuild(self):
         while True:
@@ -139,17 +125,17 @@ class ACEGraph:
         changed = False
 
         # canon rules via unionfind
-        ac_eqs = []
-        for (lhs, rhs) in self.ac_eqs:
+        ac_hashcons = []
+        for (lhs, rhs) in self.ac_hashcons:
             lhs = self.weak_canon_ac_node(lhs)
             rhs = self.canon_ac_node(rhs) # We want the actual normal form in the rhs.
             e = (lhs, rhs)
-            if e not in ac_eqs:
-                ac_eqs.append(e)
-        self.ac_eqs = ac_eqs
+            if e not in ac_hashcons:
+                ac_hashcons.append(e)
+        self.ac_hashcons = ac_hashcons
 
         # compute CPs of rules
-        L = list(self.ac_eqs)
+        L = list(self.ac_hashcons)
         for (al, ar) in L:
             for (bl, br) in L:
                 (s1, s2) = unify(al, bl)
@@ -173,8 +159,8 @@ class ACEGraph:
     def rebuild_uf_step(self):
         changed = False
         h = {}
-        for (n, i) in self.hashcons.items():
-            n = self.canon_node(n)
+        for (n, i) in self.uf_hashcons.items():
+            n = UF_Node(n.f, tuple(map(self.find, n.args)))
             i = self.find(i)
 
             # Storing this is redundant
@@ -185,10 +171,10 @@ class ACEGraph:
                 self.union(h[n], i)
             else:
                 h[n] = i
-        self.hashcons = h
+        self.uf_hashcons = h
         return changed
 
-    # respects the unionfind, but not the ac_eqs.
+    # respects the unionfind, but not the ac_hashcons.
     def weak_canon_ac_node(self, n: AC_Node) -> AC_Node:
         args = list(map(self.find, n.args))
         args = sorted(args)
@@ -200,7 +186,7 @@ class ACEGraph:
 
         while True:
             changed = False
-            for (lhs, rhs) in self.ac_eqs:
+            for (lhs, rhs) in self.ac_hashcons:
                 x = ac_match(lhs, n)
                 if x is not None:
                     n = rhs+x
