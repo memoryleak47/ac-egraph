@@ -50,7 +50,7 @@ class ACEGraph:
         if isinstance(n, UF_Node):
             n = UF_Node(n.f, tuple(map(self.find, n.args)))
         elif isinstance(n, AC_Node):
-            n = self.simplify_ac_node(n)
+            n = self.canon_ac_node(n)
         return n
 
     def add(self, n: Node) -> Id:
@@ -92,8 +92,8 @@ class ACEGraph:
         # canon rules via unionfind
         ac_eqs = []
         for (lhs, rhs) in self.ac_eqs:
-            lhs = self.canon_ac_node(lhs)
-            rhs = self.canon_ac_node(rhs)
+            lhs = self.weak_canon_ac_node(lhs)
+            rhs = self.canon_ac_node(rhs) # We want the actual normal form in the rhs.
             e = (lhs, rhs)
             if e not in ac_eqs:
                 ac_eqs.append(e)
@@ -106,8 +106,8 @@ class ACEGraph:
                 (s1, s2) = unify(al, bl)
                 lhs = s1+al
                 rhs = s2+bl
-                lhs = self.simplify_ac_node(lhs)
-                rhs = self.simplify_ac_node(rhs)
+                lhs = self.canon_ac_node(lhs)
+                rhs = self.canon_ac_node(rhs)
 
                 if lhs == rhs: continue
                 changed = True
@@ -136,14 +136,14 @@ class ACEGraph:
         return changed
 
     # respects the unionfind, but not the ac_eqs.
-    def canon_ac_node(self, n: AC_Node) -> AC_Node:
+    def weak_canon_ac_node(self, n: AC_Node) -> AC_Node:
         args = list(map(self.find, n.args))
         args = sorted(args)
         n = AC_Node(tuple(args))
         return n
 
-    def simplify_ac_node(self, n: AC_Node) -> AC_Node:
-        n = self.canon_ac_node(n)
+    def canon_ac_node(self, n: AC_Node) -> AC_Node:
+        n = self.weak_canon_ac_node(n)
 
         while True:
             changed = False
