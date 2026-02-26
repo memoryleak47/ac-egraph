@@ -16,6 +16,16 @@ class UF_Node: # node using uninterpreted function
 class AC_Node: # node using AC function
     args: tuple[Id]
 
+    def __post_init__(self):
+        assert(isinstance(self.args, tuple))
+        for v in self.args:
+            assert(isinstance(v, Id))
+        assert(self.args == tuple(sorted(self.args)))
+
+    def mk(it) -> AC_Node:
+        it = tuple(sorted(list(it)))
+        return AC_Node(it)
+
     def __add__(self, other: AC_Node):
         out = list(self.args) + list(other.args)
         out = sorted(out)
@@ -136,7 +146,7 @@ class ACEGraph:
             i = self.find(i)
             if n in h:
                 changed = True
-                self.union(n[h], i)
+                self.union(h[n], i)
             else:
                 h[n] = i
         self.hashcons = h
@@ -172,14 +182,20 @@ def unify(a: AC_Node, b: AC_Node) -> (AC_Node, AC_Node):
 
     x = AC_Node(())
     y = AC_Node(())
-    while True:
-        if a.args[i_a] == b.args[i_b]:
+    while i_a < len(a.args) and i_b < len(b.args):
+        v_a = a.args[i_a]
+        v_b = b.args[i_b]
+        if v_a == v_b:
             i_a += 1
             i_b += 1
-            continue
-        if a.args[i_a] < b.args[i_b]:
-            y = y + AC_Node()
+        elif v_a < v_b:
+            y = y + AC_Node((v_a,))
             i_a += 1
+        elif v_a > v_b:
+            x = x + AC_Node((v_b,))
+            i_b += 1
+    x += AC_Node(tuple(b.args[i_b:]))
+    y += AC_Node(tuple(a.args[i_a:]))
     return (x, y)
 
 # returns x, s.t. pat+x = t, or None if such x does not exist.
@@ -193,7 +209,7 @@ def ac_match(pat: AC_Node, t: AC_Node) -> AC_Node | None:
 eg = ACEGraph()
 
 # hack to allow adding Ids
-Id.__add__ = lambda slf, other: eg.add(AC_Node((slf, other)))
+Id.__add__ = lambda slf, other: eg.add(AC_Node.mk((slf, other)))
 
 const = lambda a: eg.add(UF_Node(a, ()))
 f = lambda x, y: eg.add(UF_Node("f", (x, y)))
